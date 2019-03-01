@@ -11,7 +11,7 @@ class Model(object):
         self.is_train = tf.get_variable(
             "is_train", shape=[], dtype=tf.bool, trainable=False)
         self.word_mat = tf.get_variable("word_mat", initializer=tf.constant(
-            word_mat, dtype=tf.float32), trainable=False)
+            word_mat, dtype=tf.float32), trainable=False)   # word embedding not trainable
         self.char_mat = tf.get_variable(
             "char_mat", initializer=tf.constant(char_mat, dtype=tf.float32))
 
@@ -56,7 +56,9 @@ class Model(object):
 
     def ready(self):
         config = self.config
-        N, PL, QL, CL, d, dc, dg = config.batch_size, self.c_maxlen, self.q_maxlen, config.char_limit, config.hidden, config.char_dim, config.char_hidden
+        N, PL, QL,\
+        CL, d, dc, dg = config.batch_size, self.c_maxlen, self.q_maxlen, \
+                        config.char_limit, config.hidden, config.char_dim, config.char_hidden
         gru = cudnn_gru if config.use_cudnn else native_gru
 
         with tf.variable_scope("emb"):
@@ -89,7 +91,7 @@ class Model(object):
 
         with tf.variable_scope("encoding"):
             rnn = gru(num_layers=3, num_units=d, batch_size=N, input_size=c_emb.get_shape(
-            ).as_list()[-1], keep_prob=config.keep_prob, is_train=self.is_train)
+            ).as_list()[-1], keep_prob=config.keep_prob, is_train=self.is_train)  #multi rnn : 3 layer
             c = rnn(c_emb, seq_len=self.c_len)
             q = rnn(q_emb, seq_len=self.q_len)
 
@@ -105,11 +107,11 @@ class Model(object):
                 att, att, mask=self.c_mask, hidden=d, keep_prob=config.keep_prob, is_train=self.is_train)
             rnn = gru(num_layers=1, num_units=d, batch_size=N, input_size=self_att.get_shape(
             ).as_list()[-1], keep_prob=config.keep_prob, is_train=self.is_train)
-            match = rnn(self_att, seq_len=self.c_len)
+            match = rnn(self_att, seq_len=self.c_len) #[N,PL,d]
 
         with tf.variable_scope("pointer"):
             init = summ(q[:, :, -2 * d:], d, mask=self.q_mask,
-                        keep_prob=config.ptr_keep_prob, is_train=self.is_train)
+                        keep_prob=config.ptr_keep_prob, is_train=self.is_train)# [N,d]
             pointer = ptr_net(batch=N, hidden=init.get_shape().as_list(
             )[-1], keep_prob=config.ptr_keep_prob, is_train=self.is_train)
             logits1, logits2 = pointer(init, match, d, self.c_mask)

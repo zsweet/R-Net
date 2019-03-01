@@ -143,14 +143,13 @@ def softmax_mask(val, mask):
 
 def pointer(inputs, state, hidden, mask, scope="pointer"):
     with tf.variable_scope(scope):
-        u = tf.concat([tf.tile(tf.expand_dims(state, axis=1), [
-            1, tf.shape(inputs)[1], 1]), inputs], axis=2)
+        u = tf.concat([tf.tile(tf.expand_dims(state, axis=1), [1, tf.shape(inputs)[1], 1]), inputs], axis=2)  #[N,PL,2d]
         s0 = tf.nn.tanh(dense(u, hidden, use_bias=False, scope="s0"))
         s = dense(s0, 1, use_bias=False, scope="s")
-        s1 = softmax_mask(tf.squeeze(s, [2]), mask)
-        a = tf.expand_dims(tf.nn.softmax(s1), axis=2)
+        s1 = softmax_mask(tf.squeeze(s, [2]), mask)#[N,PL]
+        a = tf.expand_dims(tf.nn.softmax(s1), axis=2)#[N,PL,1]
         res = tf.reduce_sum(a * inputs, axis=1)
-        return res, s1
+        return res, s1 # attention_sum  probability
 
 
 def summ(memory, hidden, mask, keep_prob=1.0, is_train=None, scope="summ"):
